@@ -1,4 +1,4 @@
-# "Hello CyberGear" in Python
+# "Hello CyberGear" (Python)
 
 (Python example is courtesy of Hans Elias at HH)
 

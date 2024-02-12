@@ -129,28 +129,9 @@ with can.interface.Bus(bustype="slcan", channel="COM20") as bus:
         m.param_write_uint(m.REG_RUN_MODE, m.RUN_MODE_POSITION)
         m.param_write_float(m.REG_LIMIT_SPD, 30)
         m.param_write_float(m.REG_LOC_REF, -3.1415 * 3 * 3.1 * 1)
-        #m.param_write_float(m.REG_LOC_REF, 2)
 
         while True:
             time.sleep(1)
 
-        # while True:
-        #    m.control(
-        #        torque=1,
-        #        target_angle=0,
-        #        target_velocity=0,
-        #        k_p=100,
-        #        k_d=1
-        #    )
-        #    time.sleep(1)
-
-        #    m.control(
-        #        torque=1,
-        #        target_angle=0,
-        #        target_velocity=0,
-        #        k_p=100,
-        #        k_d=1
-        #    )
-        #    time.sleep(1)
     finally:
         m.disable()

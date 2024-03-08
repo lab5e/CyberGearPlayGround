@@ -9,16 +9,7 @@ import (
 func TestFrameEnable(t *testing.T) {
 	expected := cgSLCanFrame{}
 
-	expected.header[0] = 0x54
-	expected.header[1] = 0x30
-	expected.header[2] = 0x33
-	expected.header[3] = 0x30
-	expected.header[4] = 0x30
-	expected.header[5] = 0x36
-	expected.header[6] = 0x34
-	expected.header[7] = 0x37
-	expected.header[8] = 0x46
-	expected.header[9] = 0x30
+	copy(expected.header[:], []byte{0x54, 0x30, 0x33, 0x30, 0x30, 0x36, 0x34, 0x37, 0x46, 0x30})
 
 	frame, err := EnableMotorCmd(0x64, 0x7F)
 
@@ -34,16 +25,7 @@ func TestFrameEnable(t *testing.T) {
 func TestFrameDisable(t *testing.T) {
 	expected := cgSLCanFrame{}
 
-	expected.header[0] = 0x54
-	expected.header[1] = 0x30
-	expected.header[2] = 0x34
-	expected.header[3] = 0x30
-	expected.header[4] = 0x30
-	expected.header[5] = 0x36
-	expected.header[6] = 0x34
-	expected.header[7] = 0x37
-	expected.header[8] = 0x46
-	expected.header[9] = 0x30
+	copy(expected.header[:], []byte{0x54, 0x30, 0x34, 0x30, 0x30, 0x36, 0x34, 0x37, 0x46, 0x30})
 
 	frame, err := DisableMotorCmd(0x64, 0x7F)
 
@@ -77,15 +59,36 @@ func TestFrameSerializeWithPayload(t *testing.T) {
 	}
 }
 
+func TestFramePositionMode(t *testing.T) {
+
+	expected := cgSLCanFrame{}
+
+	t.Fatal("WIP")
+
+}
+
+func TestWriteParameterCmd(t *testing.T) {
+	t.Fatalf("WIP")
+
+	/*
+		Location mode:
+		copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x36, 0x34, 0x37, 0x46, 0x38})
+		copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
+	*/
+
+	// const (
+	// 	OPEARATION_CONTROL_MODE runModeType = 0
+	// 	LOCATION_MODE           runModeType = 1
+	// 	SPEED_MODE              runModeType = 2
+	// 	CURRENT_MODE            runModeType = 3
+	// )
+}
+
 // func TestFrameSetSpeed(t *testing.T) {
 // 	t.Fatal("WIP")
 // }
 
 // func TestFrameSpeedMode(t *testing.T) {
-// 	t.Fatal("WIP")
-// }
-
-// func TestFramePositionMode(t *testing.T) {
 // 	t.Fatal("WIP")
 // }
 

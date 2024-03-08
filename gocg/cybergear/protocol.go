@@ -110,6 +110,15 @@ const ( // (Translated from chinese)
 	CONFIG_R_LIMIT_I           configParameter = 0x302f // Motor limits maximum current (Parameter Type float)
 )
 
+type runModeType int
+
+const (
+	OPEARATION_CONTROL_MODE runModeType = 0
+	LOCATION_MODE           runModeType = 1
+	SPEED_MODE              runModeType = 2
+	CURRENT_MODE            runModeType = 3
+)
+
 type motorParameter int // Read write
 
 const (
@@ -286,17 +295,50 @@ func DisableMotorCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
 }
 
 // 4.1.9 Single parameter writing (communication type 18) (lost in case of power failure)
-// byte 0-1: mode
-// byte 2-3: 00
-// byte 4-7: parameter data
-// func setSpeedCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
-// 	/*
-// 		Byte0~1: index, see 4.1.11 for
-// 		parameter list
-// 		Byte2~3: 00
-// 		Byte4~7: parameter data
-// 	*/
-// }
+func WriteParameterCmd(hostId byte, motorId byte, register uint32, data [4]byte) (*cgSLCanFrame, error) {
+	if hostId > MAX_CAN_ID {
+		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
+	}
+
+	if motorId > MAX_CAN_ID {
+		return nil, fmt.Errorf("invalid motor Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
+	}
+
+	hostIdString := fmt.Sprintf("%02X", hostId)
+	motorIdString := fmt.Sprintf("%02X", motorId)
+	communicationType := fmt.Sprintf("%02X", COMMUNICATION_WRITE_SINGLE_PARAM)
+
+	frame := cgSLCanFrame{}
+	frame.header[0] = 'T' // Extended frame
+	frame.header[1] = communicationType[0]
+	frame.header[2] = communicationType[1]
+	frame.header[3] = '0' // No clue...
+	frame.header[4] = '0' //
+	frame.header[5] = hostIdString[0]
+	frame.header[6] = hostIdString[1]
+	frame.header[7] = motorIdString[0]
+	frame.header[8] = motorIdString[1]
+	frame.header[9] = '8' // DLC
+
+	runMode := fmt.Sprintf("%04X", register)
+
+	frame.data[0] = runMode[2]
+	frame.data[1] = runMode[3]
+	frame.data[2] = runMode[0]
+	frame.data[3] = runMode[1]
+	frame.data[4] = '0' // 	// Byte2~3: 00
+	frame.data[5] = '0'
+	frame.data[6] = '0'
+	frame.data[7] = '0'
+
+	incrediblyWeirdEncoding := fmt.Sprintf("%02X%02X%02X%02X", data[0], data[1], data[2], data[3])
+
+	for i, v := range incrediblyWeirdEncoding {
+		frame.data[15-i] = byte(v)
+	}
+
+	return &frame, nil
+}
 
 // void CybergearDriver::motor_control(float position, float speed, float torque, float kp, float kd)
 // {

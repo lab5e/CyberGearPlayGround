@@ -1,6 +1,7 @@
 package cybergear
 
 import (
+	"encoding/hex"
 	"fmt"
 	"slices"
 	"testing"
@@ -59,39 +60,121 @@ func TestFrameSerializeWithPayload(t *testing.T) {
 	}
 }
 
-func TestFramePositionMode(t *testing.T) {
-
+func TestSetSpeedMode(t *testing.T) {
 	expected := cgSLCanFrame{}
+	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
+	copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x32, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
 
-	t.Fatal("WIP")
+	var hostId byte = 0x00
+	var motorId byte = 0x7F
 
+	actual, err := WriteRunMode(hostId, motorId, SPEED_MODE)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(expected.header[:], actual.header[:]) {
+		t.Fatalf("Wrong header bytes. Expected: %+v, Actual: %+v", expected.header, actual.header)
+	}
+
+	if !slices.Equal(expected.data[:], actual.data[:]) {
+		t.Fatalf("Wrong data bytes. Expected: %s, Actual: %s", hex.Dump(expected.data[:]), hex.Dump(actual.data[:]))
+	}
+}
+
+func TestSetOperationControlMode(t *testing.T) {
+	expected := cgSLCanFrame{}
+	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
+	copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
+
+	var hostId byte = 0x00
+	var motorId byte = 0x7F
+
+	actual, err := WriteRunMode(hostId, motorId, OPEARATION_CONTROL_MODE)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(expected.header[:], actual.header[:]) {
+		t.Fatalf("Wrong header bytes. Expected: %+v, Actual: %+v", expected.header, actual.header)
+	}
+
+	if !slices.Equal(expected.data[:], actual.data[:]) {
+		t.Fatalf("Wrong data bytes. Expected: %s, Actual: %s", hex.Dump(expected.data[:]), hex.Dump(actual.data[:]))
+	}
+}
+
+func TestSetLocationMode(t *testing.T) {
+	expected := cgSLCanFrame{}
+	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
+	copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
+
+	var hostId byte = 0x00
+	var motorId byte = 0x7F
+
+	actual, err := WriteRunMode(hostId, motorId, LOCATION_MODE)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(expected.header[:], actual.header[:]) {
+		t.Fatalf("Wrong header bytes. Expected: %+v, Actual: %+v", expected.header, actual.header)
+	}
+
+	if !slices.Equal(expected.data[:], actual.data[:]) {
+		t.Fatalf("Wrong data bytes. Expected: %s, Actual: %s", hex.Dump(expected.data[:]), hex.Dump(actual.data[:]))
+	}
+}
+
+func TestSetCurrentMode(t *testing.T) {
+	expected := cgSLCanFrame{}
+	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
+	copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x33, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
+
+	var hostId byte = 0x00
+	var motorId byte = 0x7F
+
+	actual, err := WriteRunMode(hostId, motorId, CURRENT_MODE)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(expected.header[:], actual.header[:]) {
+		t.Fatalf("Wrong header bytes. Expected: %+v, Actual: %+v", expected.header, actual.header)
+	}
+
+	if !slices.Equal(expected.data[:], actual.data[:]) {
+		t.Fatalf("Wrong data bytes. Expected: %s, Actual: %s", hex.Dump(expected.data[:]), hex.Dump(actual.data[:]))
+	}
 }
 
 func TestWriteParameterCmd(t *testing.T) {
-	t.Fatalf("WIP")
 
-	/*
-		Location mode:
-		copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x36, 0x34, 0x37, 0x46, 0x38})
-		copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
-	*/
+	var hostId byte = 0x00
+	var motorId byte = 0x7F
 
-	// const (
-	// 	OPEARATION_CONTROL_MODE runModeType = 0
-	// 	LOCATION_MODE           runModeType = 1
-	// 	SPEED_MODE              runModeType = 2
-	// 	CURRENT_MODE            runModeType = 3
-	// )
+	var speed float32 = 1.12 // rad/s
+
+	// Speed mode - expected data
+	expected := cgSLCanFrame{}
+	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
+	copy(expected.data[:], []byte{0x30, 0x41, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x32, 0x39, 0x35, 0x43, 0x38, 0x46, 0x33, 0x46})
+
+	actual, err := WriteParameterCmd(hostId, motorId, PARAMETER_SPD_REF, speed)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(expected.header[:], actual.header[:]) {
+		t.Fatalf("Wrong header bytes. Expected: %+v, Actual: %+v", expected.header, actual.header)
+	}
+
+	if !slices.Equal(expected.data[:], actual.data[:]) {
+		t.Fatalf("Wrong data bytes. Expected: %s, Actual: %s", hex.Dump(expected.data[:]), hex.Dump(actual.data[:]))
+	}
 }
-
-// func TestFrameSetSpeed(t *testing.T) {
-// 	t.Fatal("WIP")
-// }
-
-// func TestFrameSpeedMode(t *testing.T) {
-// 	t.Fatal("WIP")
-// }
-
-// func TestFrameCurrentMode(t *testing.T) {
-// 	t.Fatal("WIP")
-// }

@@ -2,6 +2,7 @@ package cybergear
 
 import (
 	"fmt"
+	"math"
 )
 
 const MAX_CAN_ID = 0x7F
@@ -110,69 +111,38 @@ const ( // (Translated from chinese)
 	CONFIG_R_LIMIT_I           configParameter = 0x302f // Motor limits maximum current (Parameter Type float)
 )
 
-type runModeType int
+type runModeType uint16
 
 const (
-	OPEARATION_CONTROL_MODE runModeType = 0
-	LOCATION_MODE           runModeType = 1
-	SPEED_MODE              runModeType = 2
-	CURRENT_MODE            runModeType = 3
+	OPEARATION_CONTROL_MODE runModeType = 0x00
+	LOCATION_MODE           runModeType = 0x01
+	SPEED_MODE              runModeType = 0x02
+	CURRENT_MODE            runModeType = 0x03
 )
 
-type motorParameter int // Read write
+type motorParameterIndex uint16 // Read write
 
 const (
-	// Operation control mode
-	// 0: 0: Operation control mode 1: Position mode 2: Speed mode 3: Current mode
-	// Parameter Type uint8_t
-	// Number of parameter bytes 1
-	// Parameter Description
-	PARAMETER_RUN_MODE motorParameter = 0x7005
-	// Current Mode Iq Command
-	// Parameter Type float
-	// Number of parameter bytes 4
-	// Parameter description -27~27A
-	PARAMETER_IQ_REF motorParameter = 0x7006
-	// Speed mode speed command
-	// Parameter Type float
-	// Number of parameter bytes 4
-	// Parameter description -30~30rad/s
-	PARAMETER_SPD_REF motorParameter = 0x700A
-	// Torque limit
-	// Parameter Type float
-	// Number of parameter bytes 4
-	// Parameter description 0~12Nm
-	PARAMETER_IMIT_TORQUE motorParameter = 0x700B
-	// Kp of current
-	// Parameter Type float
-	// Number of parameter bytes 4
-	// Parameter description Default value 0.125
-	PARAMETER_CUR_KP motorParameter = 0x7010
-	// Current Ki
-	// Parameter Type float
-	// Number of parameter bytes 4
-	// Parameter description Default value 0.0158
-	PARAMETER_CUR_KI motorParameter = 0x7011
-	// Current filter coefficient
-	// Parameter Type float
-	// Number of parameter bytes 4
-	// Parameter description Default value 0~1.0, default value W/R 0.1
-	PARAMETER_CUR_FILT_GAIN motorParameter = 0x7014
-	// Position mode angle command
-	// Parameter Type float
-	// Number of parameter bytes 4
-	// Parameter description rad
-	PARAMETER_LOC_REF motorParameter = 0x7016
-	// Position mode speed settings
-	// Parameter Type float
-	// Number of parameter bytes 4
-	// Parameter description 0~30rad/s
-	PARAMETER_LIMIT_SPD motorParameter = 0x7017
-	// Speed position mode current setting
-	// Parameter Type float
-	// Number of parameter bytes 4
-	// Parameter description 0~27A
-	PARAMETER_LIMIT_CUR = 0x7018
+	PARAMETER_RUN_MODE      motorParameterIndex = 0x7005 // R/W
+	PARAMETER_IQ_REF        motorParameterIndex = 0x7006 // R/W
+	PARAMETER_SPD_REF       motorParameterIndex = 0x700A // R/W
+	PARAMETER_IMIT_TORQUE   motorParameterIndex = 0x700B // R/W
+	PARAMETER_CUR_KP        motorParameterIndex = 0x7010 // R/W
+	PARAMETER_CUR_KI        motorParameterIndex = 0x7011 // R/W
+	PARAMETER_CUR_FILT_GAIN motorParameterIndex = 0x7014 // R/W
+	PARAMETER_LOC_REF       motorParameterIndex = 0x7016 // R/W
+	PARAMETER_LIMIT_SPD     motorParameterIndex = 0x7017 // R/W
+	PARAMETER_LIMIT_CUR     motorParameterIndex = 0x7018 // R/W
+	/*
+		PARAMETER_MECH_POS		motorParameterIndex = 0x7019	// R
+		PARAMETER_IQF			motorParameterIndex = 0x701A	// R
+		PARAMETER_MECH_VEL		motorParameterIndex = 0x701B	// R
+		PARAMETER_MECH_VBUS		motorParameterIndex = 0x701C	// R
+		PARAMETER_MECH_ROTATION	motorParameterIndex = 0x701D	// R/W
+		PARAMETER_LOC_KP		motorParameterIndex = 0x701E	// R/W
+		PARAMETER_SPD_KP		motorParameterIndex = 0x701F	// R/W
+		PARAMETER_SPD_KI		motorParameterIndex = 0x7020	// R/W
+	*/
 )
 
 // CyberGear Communication mode 1 sends control instructions
@@ -214,9 +184,9 @@ type motorStatus struct {
 
 // CyberGear Communication mode 17 single parameter reading
 type singleParam struct {
-	hostId    byte           // Host CAN Id
-	motorId   byte           // Motor CAN Id
-	parameter motorParameter // 参数索引
+	hostId    byte                // Host CAN Id
+	motorId   byte                // Motor CAN Id
+	parameter motorParameterIndex // 参数索引
 	data      [4]byte
 }
 
@@ -224,6 +194,13 @@ type singleParam struct {
 type cgSLCanFrame struct {
 	header [10]byte
 	data   [16]byte
+}
+
+func NewcgSLCanFrame() cgSLCanFrame {
+	return cgSLCanFrame{
+		header: [10]byte{0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30},
+		data:   [16]byte{0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30},
+	}
 }
 
 func (f *cgSLCanFrame) Serialize() []byte {
@@ -250,17 +227,14 @@ func EnableMotorCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
 	motorIdString := fmt.Sprintf("%02X", motorId)
 	communicationType := fmt.Sprintf("%02X", COMMUNICATION_ENABLE_DEVICE)
 
-	frame := cgSLCanFrame{}
+	frame := NewcgSLCanFrame()
 	frame.header[0] = 'T' // Extended frame
 	frame.header[1] = communicationType[0]
 	frame.header[2] = communicationType[1]
-	frame.header[3] = '0' // No clue...
-	frame.header[4] = '0' //
 	frame.header[5] = hostIdString[0]
 	frame.header[6] = hostIdString[1]
 	frame.header[7] = motorIdString[0]
 	frame.header[8] = motorIdString[1]
-	frame.header[9] = '0' // DLC
 
 	return &frame, nil
 }
@@ -279,23 +253,19 @@ func DisableMotorCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
 	motorIdString := fmt.Sprintf("%02X", motorId)
 	communicationType := fmt.Sprintf("%02X", COMMUNICATION_DISABLE_DEVICE)
 
-	frame := cgSLCanFrame{}
+	frame := NewcgSLCanFrame()
 	frame.header[0] = 'T' // Extended frame
 	frame.header[1] = communicationType[0]
 	frame.header[2] = communicationType[1]
-	frame.header[3] = '0' // No clue...
-	frame.header[4] = '0' //
 	frame.header[5] = hostIdString[0]
 	frame.header[6] = hostIdString[1]
 	frame.header[7] = motorIdString[0]
 	frame.header[8] = motorIdString[1]
-	frame.header[9] = '0' // DLC
 
 	return &frame, nil
 }
 
-// 4.1.9 Single parameter writing (communication type 18) (lost in case of power failure)
-func WriteParameterCmd(hostId byte, motorId byte, register uint32, data [4]byte) (*cgSLCanFrame, error) {
+func WriteRunMode(hostId byte, motorId byte, mode runModeType) (*cgSLCanFrame, error) {
 	if hostId > MAX_CAN_ID {
 		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
 	}
@@ -308,53 +278,93 @@ func WriteParameterCmd(hostId byte, motorId byte, register uint32, data [4]byte)
 	motorIdString := fmt.Sprintf("%02X", motorId)
 	communicationType := fmt.Sprintf("%02X", COMMUNICATION_WRITE_SINGLE_PARAM)
 
-	frame := cgSLCanFrame{}
+	frame := NewcgSLCanFrame()
 	frame.header[0] = 'T' // Extended frame
 	frame.header[1] = communicationType[0]
 	frame.header[2] = communicationType[1]
-	frame.header[3] = '0' // No clue...
-	frame.header[4] = '0' //
 	frame.header[5] = hostIdString[0]
 	frame.header[6] = hostIdString[1]
 	frame.header[7] = motorIdString[0]
 	frame.header[8] = motorIdString[1]
 	frame.header[9] = '8' // DLC
 
-	runMode := fmt.Sprintf("%04X", register)
+	index := fmt.Sprintf("%04X", PARAMETER_RUN_MODE)
 
-	frame.data[0] = runMode[2]
-	frame.data[1] = runMode[3]
-	frame.data[2] = runMode[0]
-	frame.data[3] = runMode[1]
-	frame.data[4] = '0' // 	// Byte2~3: 00
-	frame.data[5] = '0'
-	frame.data[6] = '0'
-	frame.data[7] = '0'
+	frame.data[0] = index[2]
+	frame.data[1] = index[3]
+	frame.data[2] = index[0]
+	frame.data[3] = index[1]
 
-	incrediblyWeirdEncoding := fmt.Sprintf("%02X%02X%02X%02X", data[0], data[1], data[2], data[3])
+	runMode := fmt.Sprintf("%02X", mode)
 
-	for i, v := range incrediblyWeirdEncoding {
-		frame.data[15-i] = byte(v)
-	}
+	frame.data[8] = runMode[0]
+	frame.data[9] = runMode[1]
+	frame.data[10] = '0'
+	frame.data[11] = '0'
+	frame.data[12] = '0'
+	frame.data[13] = '0'
+	frame.data[14] = '0'
+	frame.data[15] = '0'
 
 	return &frame, nil
 }
 
-// void CybergearDriver::motor_control(float position, float speed, float torque, float kp, float kd)
-// {
-//   uint8_t data[8] = {0x00};
-//   data[0] = float_to_uint(position, P_MIN, P_MAX, 16) >> 8;
-//   data[1] = float_to_uint(position, P_MIN, P_MAX, 16);
-//   data[2] = float_to_uint(speed, V_MIN, V_MAX, 16) >> 8;
-//   data[3] = float_to_uint(speed, V_MIN, V_MAX, 16);
-//   data[4] = float_to_uint(kp, KP_MIN, KP_MAX, 16) >> 8;
-//   data[5] = float_to_uint(kp, KP_MIN, KP_MAX, 16);
-//   data[6] = float_to_uint(kd, KD_MIN, KD_MAX, 16) >> 8;
-//   data[7] = float_to_uint(kd, KD_MIN, KD_MAX, 16);
+// 4.1.9 Single parameter writing (communication type 18) (lost in case of power failure)
+//
+//	Parameter				Name			Description							Type	bytes	Unit						R/W
+//	PARAMETER_IQ_REF 		iq_ref 			Current Mode Iq						float	4 		23~23A 						R/W
+//	PARAMETER_SPD_REF		spd_ref 		Speed mode							float 	4		-30~30rad/s					R/W
+//	PARAMETER_IMIT_TORQUE	imit_torque		Torque limit 						float 	4		0~12Nm 						R/W
+//	PARAMETER_CUR_KP 		cur_kp 			Current Kp							float	4		Default value 0.125			R/W
+//	PARAMETER_CUR_KI 		cur_ki 			Current Ki 							float 	4 		Default value 0.0158		R/W
+//	PARAMETER_CUR_FILT_GAIN	cur_filt_gain	Current filter coefficient			float	4		0~1.0, default value 0.1	R/W
+//	PARAMETER_LOC_REF 		loc_ref 		Position mode angle					float	4 		rad 						R/W
+//	PARAMETER_LIMIT_SPD		limit_spd 		Location mode speed limit			float 	4 		0~30rad/s 					R/W
+//	PARAMETER_LIMIT_CUR		limit_cur 		Speed Position mode Current limit	float 	4 		0~23A						R/W
+func WriteParameterCmd(hostId byte, motorId byte, index motorParameterIndex, data float32) (*cgSLCanFrame, error) {
+	if hostId > MAX_CAN_ID {
+		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
+	}
 
-//   uint16_t data_torque = float_to_uint(torque, T_MIN, T_MAX, 16);
-//   send_command(target_can_id_, CMD_POSITION, data_torque, 8, data);
-// }
+	if motorId > MAX_CAN_ID {
+		return nil, fmt.Errorf("invalid motor Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
+	}
+
+	hostIdString := fmt.Sprintf("%02X", hostId)
+	motorIdString := fmt.Sprintf("%02X", motorId)
+	communicationType := fmt.Sprintf("%02X", COMMUNICATION_WRITE_SINGLE_PARAM)
+
+	frame := NewcgSLCanFrame()
+	frame.header[0] = 'T' // Extended frame
+	frame.header[1] = communicationType[0]
+	frame.header[2] = communicationType[1]
+	frame.header[5] = hostIdString[0]
+	frame.header[6] = hostIdString[1]
+	frame.header[7] = motorIdString[0]
+	frame.header[8] = motorIdString[1]
+	frame.header[9] = '8' // DLC
+
+	indexString := fmt.Sprintf("%04X", index)
+
+	frame.data[0] = indexString[2]
+	frame.data[1] = indexString[3]
+	frame.data[2] = indexString[0]
+	frame.data[3] = indexString[1]
+
+	data_int := math.Float32bits(data)
+	incrediblyWeirdEncoding := fmt.Sprintf("%02X%02X%02X%02X", data_int>>24&0xFF, data_int>>16&0xFF, data_int>>8&0xFF, data_int&0xFF)
+
+	frame.data[8] = incrediblyWeirdEncoding[6]
+	frame.data[9] = incrediblyWeirdEncoding[7]
+	frame.data[10] = incrediblyWeirdEncoding[4]
+	frame.data[11] = incrediblyWeirdEncoding[5]
+	frame.data[12] = incrediblyWeirdEncoding[2]
+	frame.data[13] = incrediblyWeirdEncoding[3]
+	frame.data[14] = incrediblyWeirdEncoding[0]
+	frame.data[15] = incrediblyWeirdEncoding[1]
+
+	return &frame, nil
+}
 
 // /* 对 CAN ID 区域特定的比特位进行赋值整数
 //  * @param: frame 要设置的帧
@@ -395,19 +405,19 @@ func WriteParameterCmd(hostId byte, motorId byte, register uint32, data [4]byte)
 //  * @param: index 参数index
 //  * @param: value 参数值
 //  * */
-// CYBERGEARAPI void cyber_gear_build_parameter_write_frame_with_int_value(const cgFrame *frame, motorParameter index, int value);
+// CYBERGEARAPI void cyber_gear_build_parameter_write_frame_with_int_value(const cgFrame *frame, motorParameterIndex index, int value);
 
 // /* 构造一个参数写入的CAN包 (通信类型18), 参数值为浮点
 //  * @param: frame 要设置的帧
 //  * @param: index 参数index
 //  * @param: value 参数值
 //  * */
-// CYBERGEARAPI void cyber_gear_build_parameter_write_frame_with_float_value(const cgFrame *frame, motorParameter index, float value);
+// CYBERGEARAPI void cyber_gear_build_parameter_write_frame_with_float_value(const cgFrame *frame, motorParameterIndex index, float value);
 
 // /* 构造一个参数读取的CAN包 （通信类型17）
 //  * @param: frame 要设置的帧
 //  */
-// CYBERGEARAPI void cyber_gear_build_parameter_read_frame(const cgFrame *frame, motorParameter index);
+// CYBERGEARAPI void cyber_gear_build_parameter_read_frame(const cgFrame *frame, motorParameterIndex index);
 
 // /* 解析一个参数读取的CAN包 （通信类型17）
 //  * @param: frame 要设置的帧

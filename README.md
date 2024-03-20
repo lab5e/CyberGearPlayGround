@@ -1,10 +1,4 @@
-# "Hello CyberGear" (Python)
-
-(Python example is courtesy of Hans Elias at HH)
-
-# Setup
-
-* pip install python-can (use socketcan or slcan interface).
+# "Hello CyberGear"
 
 # Hardware required
 
@@ -19,6 +13,30 @@
 
 * Power supply: BAT+ / GND
 * MKS Canable: CAN_L / CAN_H ("G" on MKS Canable can be left unconnected)
+
+# Go
+
+## Currently implemented commands
+
+
+|command| arguments | example |description|
+|-------|----------------|-----|-----|
+|open   | \<serialport\> | open COM15 |Opens the serial port for reading and writing.|
+|close  |                | close|Closes the currently open serial port.|
+|enable | \<motor id\>   |enable 7F| Enable a motor (7F is the default cybergear id).|
+|disable| \<motor id\>   | disable 7F|Disables / stops the motor.|
+|speed  | \<motor id\> \<speed\>|speed 7F 2.2| Sets motor speed (rad/s).|
+
+>TODO:
+>- read motor parameters (current speed / location / current etc)
+>- current / position mode
+>- more stuff...
+
+
+# Python
+(Python example is courtesy of Hans Elias at HH)
+
+* pip install python-can (use socketcan or slcan interface).
 
 
 # Useful stuff

@@ -191,29 +191,40 @@ type singleParam struct {
 }
 
 // CyberGear SLCAN frame
-type cgSLCanFrame struct {
-	header [10]byte
-	data   [16]byte
+type SLCanFrame struct {
+	header   [10]byte
+	data     [16]byte
+	checksum byte
 }
 
-func NewcgSLCanFrame() cgSLCanFrame {
-	return cgSLCanFrame{
+func NewSLCanFrame() SLCanFrame {
+	return SLCanFrame{
 		header: [10]byte{0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30},
 		data:   [16]byte{0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30},
 	}
 }
 
-func (f *cgSLCanFrame) Serialize() []byte {
+func (f *SLCanFrame) Serialize() []byte {
 	buf := []byte{}
 	buf = append(buf, f.header[:]...)
-	if f.header[9] != 0 {
-		buf = append(buf, f.data[:f.header[9]*2]...)
+
+	if f.header[9] != 0x30 {
+		buf = append(buf, f.data[:(f.header[9]-0x30)*2]...)
 	}
+
+	// For some reason, the SLCan implementation for MKS CANable and / or cybergear doesn't seem to be interested in the checksum
+	// var checksum byte
+	// for _, b := range buf {
+	// 	checksum ^= byte(b)
+	// }
+	// checksumStr := fmt.Sprintf("%02X", checksum)
+	// buf = append(buf, checksumStr[1])
+	// buf = append(buf, checksumStr[0])
 	return buf
 }
 
 // 4.1.4 Motor enable operation (communication type 3)
-func EnableMotorCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
+func EnableMotorCmd(hostId byte, motorId byte) (*SLCanFrame, error) {
 
 	if hostId > MAX_CAN_ID {
 		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
@@ -227,7 +238,7 @@ func EnableMotorCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
 	motorIdString := fmt.Sprintf("%02X", motorId)
 	communicationType := fmt.Sprintf("%02X", COMMUNICATION_ENABLE_DEVICE)
 
-	frame := NewcgSLCanFrame()
+	frame := NewSLCanFrame()
 	frame.header[0] = 'T' // Extended frame
 	frame.header[1] = communicationType[0]
 	frame.header[2] = communicationType[1]
@@ -240,7 +251,7 @@ func EnableMotorCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
 }
 
 // 4.1.5 Motor stopped (communication type 4)
-func DisableMotorCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
+func DisableMotorCmd(hostId byte, motorId byte) (*SLCanFrame, error) {
 	if hostId > MAX_CAN_ID {
 		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
 	}
@@ -253,7 +264,7 @@ func DisableMotorCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
 	motorIdString := fmt.Sprintf("%02X", motorId)
 	communicationType := fmt.Sprintf("%02X", COMMUNICATION_DISABLE_DEVICE)
 
-	frame := NewcgSLCanFrame()
+	frame := NewSLCanFrame()
 	frame.header[0] = 'T' // Extended frame
 	frame.header[1] = communicationType[0]
 	frame.header[2] = communicationType[1]
@@ -265,7 +276,7 @@ func DisableMotorCmd(hostId byte, motorId byte) (*cgSLCanFrame, error) {
 	return &frame, nil
 }
 
-func WriteRunMode(hostId byte, motorId byte, mode runModeType) (*cgSLCanFrame, error) {
+func SetRunMode(hostId byte, motorId byte, mode runModeType) (*SLCanFrame, error) {
 	if hostId > MAX_CAN_ID {
 		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
 	}
@@ -278,7 +289,7 @@ func WriteRunMode(hostId byte, motorId byte, mode runModeType) (*cgSLCanFrame, e
 	motorIdString := fmt.Sprintf("%02X", motorId)
 	communicationType := fmt.Sprintf("%02X", COMMUNICATION_WRITE_SINGLE_PARAM)
 
-	frame := NewcgSLCanFrame()
+	frame := NewSLCanFrame()
 	frame.header[0] = 'T' // Extended frame
 	frame.header[1] = communicationType[0]
 	frame.header[2] = communicationType[1]
@@ -321,7 +332,7 @@ func WriteRunMode(hostId byte, motorId byte, mode runModeType) (*cgSLCanFrame, e
 //	PARAMETER_LOC_REF 		loc_ref 		Position mode angle					float	4 		rad 						R/W
 //	PARAMETER_LIMIT_SPD		limit_spd 		Location mode speed limit			float 	4 		0~30rad/s 					R/W
 //	PARAMETER_LIMIT_CUR		limit_cur 		Speed Position mode Current limit	float 	4 		0~23A						R/W
-func WriteParameterCmd(hostId byte, motorId byte, index motorParameterIndex, data float32) (*cgSLCanFrame, error) {
+func WriteParameterCmd(hostId byte, motorId byte, index motorParameterIndex, data float32) (*SLCanFrame, error) {
 	if hostId > MAX_CAN_ID {
 		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
 	}
@@ -334,7 +345,7 @@ func WriteParameterCmd(hostId byte, motorId byte, index motorParameterIndex, dat
 	motorIdString := fmt.Sprintf("%02X", motorId)
 	communicationType := fmt.Sprintf("%02X", COMMUNICATION_WRITE_SINGLE_PARAM)
 
-	frame := NewcgSLCanFrame()
+	frame := NewSLCanFrame()
 	frame.header[0] = 'T' // Extended frame
 	frame.header[1] = communicationType[0]
 	frame.header[2] = communicationType[1]

@@ -8,7 +8,7 @@ import (
 )
 
 func TestFrameEnable(t *testing.T) {
-	expected := cgSLCanFrame{}
+	expected := NewcgSLCanFrame()
 
 	copy(expected.header[:], []byte{0x54, 0x30, 0x33, 0x30, 0x30, 0x36, 0x34, 0x37, 0x46, 0x30})
 
@@ -24,7 +24,7 @@ func TestFrameEnable(t *testing.T) {
 }
 
 func TestFrameDisable(t *testing.T) {
-	expected := cgSLCanFrame{}
+	expected := NewcgSLCanFrame()
 
 	copy(expected.header[:], []byte{0x54, 0x30, 0x34, 0x30, 0x30, 0x36, 0x34, 0x37, 0x46, 0x30})
 
@@ -40,8 +40,7 @@ func TestFrameDisable(t *testing.T) {
 }
 
 func TestFrameSerializeNoPayload(t *testing.T) {
-	f := cgSLCanFrame{}
-	f.header[9] = 0
+	f := NewcgSLCanFrame()
 	b := f.Serialize()
 
 	if len(b) != 10 {
@@ -50,25 +49,25 @@ func TestFrameSerializeNoPayload(t *testing.T) {
 }
 
 func TestFrameSerializeWithPayload(t *testing.T) {
-	f := cgSLCanFrame{}
-	var dlc byte = 3
+	f := NewcgSLCanFrame()
+	var dlc byte = '3'
 	f.header[9] = dlc
 	b := f.Serialize()
 
-	if len(b) != int(10+2*dlc) {
+	if len(b) != int(10+2*(dlc-0x30)) {
 		t.Fatal(fmt.Errorf("Unexpected length of serialized frame (%d). DLC=%d => only header + %d bytes should be serialized", len(b), dlc, 2*dlc))
 	}
 }
 
 func TestSetSpeedMode(t *testing.T) {
-	expected := cgSLCanFrame{}
+	expected := NewcgSLCanFrame()
 	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
 	copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x32, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
 
 	var hostId byte = 0x00
 	var motorId byte = 0x7F
 
-	actual, err := WriteRunMode(hostId, motorId, SPEED_MODE)
+	actual, err := SetRunMode(hostId, motorId, SPEED_MODE)
 
 	if err != nil {
 		t.Fatal(err)
@@ -84,14 +83,14 @@ func TestSetSpeedMode(t *testing.T) {
 }
 
 func TestSetOperationControlMode(t *testing.T) {
-	expected := cgSLCanFrame{}
+	expected := NewcgSLCanFrame()
 	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
 	copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
 
 	var hostId byte = 0x00
 	var motorId byte = 0x7F
 
-	actual, err := WriteRunMode(hostId, motorId, OPEARATION_CONTROL_MODE)
+	actual, err := SetRunMode(hostId, motorId, OPEARATION_CONTROL_MODE)
 
 	if err != nil {
 		t.Fatal(err)
@@ -107,14 +106,14 @@ func TestSetOperationControlMode(t *testing.T) {
 }
 
 func TestSetLocationMode(t *testing.T) {
-	expected := cgSLCanFrame{}
+	expected := NewcgSLCanFrame()
 	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
 	copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
 
 	var hostId byte = 0x00
 	var motorId byte = 0x7F
 
-	actual, err := WriteRunMode(hostId, motorId, LOCATION_MODE)
+	actual, err := SetRunMode(hostId, motorId, LOCATION_MODE)
 
 	if err != nil {
 		t.Fatal(err)
@@ -130,14 +129,14 @@ func TestSetLocationMode(t *testing.T) {
 }
 
 func TestSetCurrentMode(t *testing.T) {
-	expected := cgSLCanFrame{}
+	expected := NewcgSLCanFrame()
 	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
 	copy(expected.data[:], []byte{0x30, 0x35, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x33, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30})
 
 	var hostId byte = 0x00
 	var motorId byte = 0x7F
 
-	actual, err := WriteRunMode(hostId, motorId, CURRENT_MODE)
+	actual, err := SetRunMode(hostId, motorId, CURRENT_MODE)
 
 	if err != nil {
 		t.Fatal(err)
@@ -160,7 +159,7 @@ func TestWriteParameterCmd(t *testing.T) {
 	var speed float32 = 1.12 // rad/s
 
 	// Speed mode - expected data
-	expected := cgSLCanFrame{}
+	expected := NewcgSLCanFrame()
 	copy(expected.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
 	copy(expected.data[:], []byte{0x30, 0x41, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x32, 0x39, 0x35, 0x43, 0x38, 0x46, 0x33, 0x46})
 
@@ -176,5 +175,18 @@ func TestWriteParameterCmd(t *testing.T) {
 
 	if !slices.Equal(expected.data[:], actual.data[:]) {
 		t.Fatalf("Wrong data bytes. Expected: %s, Actual: %s", hex.Dump(expected.data[:]), hex.Dump(actual.data[:]))
+	}
+}
+
+func TestFrameSerializeWithFullPayload(t *testing.T) {
+
+	f := NewcgSLCanFrame()
+	copy(f.header[:], []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38})
+	copy(f.data[:], []byte{0x30, 0x41, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x32, 0x39, 0x35, 0x43, 0x38, 0x46, 0x33, 0x46})
+
+	expected := []byte{0x54, 0x31, 0x32, 0x30, 0x30, 0x30, 0x30, 0x37, 0x46, 0x38, 0x30, 0x41, 0x37, 0x30, 0x30, 0x30, 0x30, 0x30, 0x32, 0x39, 0x35, 0x43, 0x38, 0x46, 0x33, 0x46}
+
+	if !slices.Equal(expected, f.Serialize()) {
+		t.Fatalf("Frame serialize failed")
 	}
 }

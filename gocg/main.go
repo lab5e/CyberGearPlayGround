@@ -32,7 +32,10 @@ func main() {
 			if strings.ToLower(command) == "/quit" {
 				chatui.Stop()
 			}
-			commands.Dispatch(command, outputCh)
+			err := commands.Dispatch(command, outputCh)
+			if err != nil {
+				outputCh <- err.Error()
+			}
 			chatui.SetStatus("last command was: " + command)
 		}
 	}()

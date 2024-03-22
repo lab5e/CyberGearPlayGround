@@ -6,6 +6,7 @@ import (
 )
 
 const MAX_CAN_ID = 0x7F
+const EXTENDED_FRAME_TYPE = 'T'
 
 type communicationType int
 
@@ -153,33 +154,6 @@ type motionControl struct {
 	kp     float32 // Kp (0.0~500.0)
 	kd     float32 // Kd (0.0~5.0)
 	torque float32 // Torque corresponding (-12Nm~12Nm)
-}
-
-// CyberGear Communication mode 2 motor feedback data
-// TODO: Verify int32 type
-type motorMode int32
-
-const (
-	resetMode       motorMode = 0
-	calibrationMode motorMode = 1
-	operatingMode   motorMode = 2
-)
-
-// TODO: Verify int32/uint32
-type motorStatus struct {
-	hostId                byte    // Host CAN Id
-	motorId               byte    // Motor CAN Id
-	currentTorque         float32 // [-12, 12] N/m
-	currentAngle          float32 // [-4pi, 4pi]
-	currentSpeed          float32 // [-30rad/s, 30rad/s]
-	currentTemperature    float32 // Current temperature: Temp (degrees Celsius) * 10
-	calibrationError      int32
-	hallEncoderError      int32
-	magneticEncodingError int32
-	overtemperature       int32
-	overcurrent           int32
-	undervoltage          int32
-	mode                  motorMode
 }
 
 // CyberGear Communication mode 17 single parameter reading
@@ -457,12 +431,6 @@ func WriteParameterCmd(hostId byte, motorId byte, index motorParameterIndex, dat
 //  * @param: control_param 控制参数
 //  * */
 // CYBERGEARAPI void cyber_gear_build_motion_control_frame(const cgFrame *frame, const motionControl control_param);
-
-// /* 解析通信类型2 电机运行状态帧
-//  * @param: frame 要解析的帧
-//  * @return: communicationType 通信类型
-//  * */
-// CYBERGEARAPI motorStatus cyber_gear_parse_motor_status_frame(const cgFrame * const frame);
 
 // /* 解析通信类型6 构建一个 位置机械零位帧
 //  * @param: frame 要解析的帧

@@ -18,7 +18,7 @@ func main() {
 		OutputCh:     outputCh,
 		CommandCh:    commandCh,
 		DynamicColor: false,
-		BlockCtrlC:   false,
+		BlockCtrlC:   true,
 		HistorySize:  10,
 	})
 

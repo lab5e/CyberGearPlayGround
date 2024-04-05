@@ -8,19 +8,19 @@ import (
 const MAX_CAN_ID = 0x7F
 const EXTENDED_FRAME_TYPE = 'T'
 
-type communicationType int
+type CommunicationType int
 
 const (
-	COMMUNICATION_FETCH_DEVICE_ID              communicationType = 0  // Get the device ID (communication type 0); get the device ID and 64-bit MCU unique identifier
-	COMMUNICATION_MOTION_CONTROL_COMMAND       communicationType = 1  // Operation control mode motor control instructions (communication type 1) are used to send control instructions to the motor
-	COMMUNICATION_STATUS_REPORT                communicationType = 2  // Motor feedback data (communication type 2) is used to feedback the motor operating status to the host
-	COMMUNICATION_ENABLE_DEVICE                communicationType = 3  // Motor enable operation (communication type 3)
-	COMMUNICATION_DISABLE_DEVICE               communicationType = 4  // Motor stopped (communication type 4)
-	COMMUNICATION_SET_MECHANICAL_ZERO_POSITION communicationType = 6  // Setting the mechanical zero position of the motor (communication type 6) will set the current motor position to the mechanical zero position (lost after power failure)
-	COMMUNICATION_SET_CAN_ID                   communicationType = 7  // Set motor CAN_ID (communication type 7) to change the current motor CAN_ID, which will take effect immediately.
-	COMMUNICATION_READ_SINGLE_PARAM            communicationType = 17 // Single parameter reading (communication type 17)
-	COMMUNICATION_WRITE_SINGLE_PARAM           communicationType = 18 // Single parameter writing (communication type 18) (lost after power failure)
-	COMMUNICATION_ERROR_REPORT                 communicationType = 21 // Fault feedback frame (communication type 21)
+	COMMUNICATION_FETCH_DEVICE_ID              CommunicationType = 0  // Get the device ID (communication type 0); get the device ID and 64-bit MCU unique identifier
+	COMMUNICATION_MOTION_CONTROL_COMMAND       CommunicationType = 1  // Operation control mode motor control instructions (communication type 1) are used to send control instructions to the motor
+	COMMUNICATION_STATUS_REPORT                CommunicationType = 2  // Motor feedback data (communication type 2) is used to feedback the motor operating status to the host
+	COMMUNICATION_ENABLE_DEVICE                CommunicationType = 3  // Motor enable operation (communication type 3)
+	COMMUNICATION_DISABLE_DEVICE               CommunicationType = 4  // Motor stopped (communication type 4)
+	COMMUNICATION_SET_MECHANICAL_ZERO_POSITION CommunicationType = 6  // Setting the mechanical zero position of the motor (communication type 6) will set the current motor position to the mechanical zero position (lost after power failure)
+	COMMUNICATION_SET_CAN_ID                   CommunicationType = 7  // Set motor CAN_ID (communication type 7) to change the current motor CAN_ID, which will take effect immediately.
+	COMMUNICATION_READ_SINGLE_PARAM            CommunicationType = 17 // Single parameter reading (communication type 17)
+	COMMUNICATION_WRITE_SINGLE_PARAM           CommunicationType = 18 // Single parameter writing (communication type 18) (lost after power failure)
+	COMMUNICATION_ERROR_REPORT                 CommunicationType = 21 // Fault feedback frame (communication type 21)
 )
 
 type configParameter int
@@ -199,7 +199,6 @@ func (f *SLCanFrame) Serialize() []byte {
 
 // 4.1.4 Motor enable operation (communication type 3)
 func EnableMotorCmd(hostId byte, motorId byte) (*SLCanFrame, error) {
-
 	if hostId > MAX_CAN_ID {
 		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
 	}

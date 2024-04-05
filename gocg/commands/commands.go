@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gocg/cybergear"
 	"gocg/parameters"
+	"gocg/slcan"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +14,7 @@ import (
 
 var serialPort *serial.Port
 
-func ReadFrame(outputCh chan string) {
+func ReadFrame(outputCh chan string) error {
 	var frameBuffer []byte
 	readBuffer := make([]byte, 32)
 	var n int
@@ -27,50 +28,52 @@ func ReadFrame(outputCh chan string) {
 	}
 
 	if len(frameBuffer) > 0 {
-		// Parse frame (only two different response frame types)
-		outputCh <- fmt.Sprintf("Response: %+v", frameBuffer)
-		outputCh <- fmt.Sprintf("Response: %s", frameBuffer)
+		outputCh <- fmt.Sprintf("RX (hex)  : %+v", frameBuffer)
+		outputCh <- fmt.Sprintf("RX (ascii): %s", frameBuffer)
 
-		// Move to motor feedback
-		// 	// bit 28 - 24 communication type
-		// 	// bit 8 - 15 motor CAN ID
-
-		// 	// bit 21 - not calibrated
-		// 	// bit 20 - hall encoding fault
-		// 	// bit 19 - magnetic encoding error
-		// 	// bit 18 - overtemperature
-		// 	// bit 17 - overcurrent
-		// 	// bit 16 - undervoltage
-		// 	// bit 22-23 mode (0: reset, 1: calibration: 2: run mode )
-
-		// 	// bit 0-7 host CAN id
-
-		// 	// er B checksum ?
-
-		// 	Example frame (ASCII): 	T02807f008F FF F7 FF 87 FF F0 12 B
-
-		// 	B == checksum ?
-
-		// 	T
-		// 	02 - communication type
-		// 	80 - 0101 0000
-		// 	7f - motorID
-		// 	00 - host canID
-		// 	8F FF F7 FF 87 FF F0 12B
-
-		// 30 02 80 7f 00 8f ff f7 fb b7 ff f0 13
-
+		frame, err := slcan.HandleIncomingFrame(frameBuffer)
+		if err != nil {
+			outputCh <- ">>> Not able to decode response frame - yet <<<"
+			outputCh <- fmt.Sprintf(">>> %s <<<", err.Error())
+		} else {
+			outputCh <- frame.String()
+		}
 	}
 
+	return nil
+}
+
+func SendSLCommand(txBuffer []byte, outputCh chan string) error {
+	if nil == serialPort {
+		return fmt.Errorf("it might be a good idea to open a serial port first")
+	}
+
+	outputCh <- "Setting CAN bitrate to 1Mbit"
+	setBitrateCmd := []byte{'S', '8', '\r'}
+	outputCh <- fmt.Sprintf("TX (hex)   : %+v", txBuffer)
+	outputCh <- fmt.Sprintf("TX (ascii) : %+s", txBuffer)
+
+	serialPort.Write(setBitrateCmd)
+
+	err := ReadFrame(outputCh)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func SendFrame(frame *cybergear.SLCanFrame, outputCh chan string) error {
 	bytesToSend := frame.Serialize()
 	bytesToSend = append(bytesToSend, '\r')
 
+	outputCh <- fmt.Sprintf("Sending frame : %+v", bytesToSend)
+
 	if nil == serialPort {
 		return fmt.Errorf("it might be a good idea to open a serial port first")
 	}
+
+	outputCh <- fmt.Sprintf("TX (hex)  : %+v", bytesToSend)
+	outputCh <- fmt.Sprintf("TX (ascii): %+s", bytesToSend)
 
 	n, err := serialPort.Write(bytesToSend)
 	if err != nil {
@@ -81,17 +84,12 @@ func SendFrame(frame *cybergear.SLCanFrame, outputCh chan string) error {
 	}
 	serialPort.Flush()
 
-	ReadFrame(outputCh)
+	err = ReadFrame(outputCh)
 
-	// readBuffer := make([]byte, 256)
-	// for i := 0; i < 2; i++ {
-	// 	_, err = serialPort.Read(readBuffer)
-	// 	if err != nil {
-	// 		outputCh <- err.Error()
-	// 	}
-	// 	// outputCh <- fmt.Sprintf("Reply: %d bytes", n)
-	// 	// outputCh <- fmt.Sprintf("%+v", readBuffer[:n])
-	// }
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -137,20 +135,22 @@ func executeEnableCmd(args []string, outputCh chan string) error {
 		return err
 	}
 
-	outputCh <- "OK"
+	outputCh <- fmt.Sprintf("Enable motor (CAN id: %02X) OK", motorId)
 
 	return nil
 }
 
 func executeDisableCmd(args []string, outputCh chan string) error {
 	if len(args) != 2 {
-		return fmt.Errorf("syntax error ('enable <motor ID>')' Args: '%+v'", args)
+		return fmt.Errorf("syntax error ('disable <motor ID>')' Args: '%+v'", args)
 	}
 
 	motorId, err := strconv.ParseUint(args[1], 16, 8)
 	if err != nil {
 		return fmt.Errorf("syntax error: disable <motor ID>: '%s'", args[1])
 	}
+
+	outputCh <- fmt.Sprintf("Disabling %02X", motorId)
 
 	frame, err := cybergear.DisableMotorCmd(parameters.HostId, byte(motorId))
 
@@ -162,6 +162,8 @@ func executeDisableCmd(args []string, outputCh chan string) error {
 	if err != nil {
 		return err
 	}
+
+	outputCh <- fmt.Sprintf("Disable %02X OK", motorId)
 
 	return nil
 }
@@ -183,36 +185,21 @@ func executeOpenCmd(args []string, outputCh chan string) error {
 		return fmt.Errorf("unable to open %s. Error %s", args[0], err)
 	}
 
-	outputCh <- "Setting CAN bitrate to 1Mbit"
-	setBitrateCmd := []byte{'S', '8', '\r'}
-	serialPort.Write(setBitrateCmd)
-
-	ReadFrame(outputCh)
-
-	// readBuffer := make([]byte, 16)
-	// var n int
-	// for i := 0; i < 2; i++ {
-	// 	n, _ = serialPort.Read(readBuffer)
-	// 	if n > 0 {
-	// 		outputCh <- fmt.Sprintf("Response: %+v", readBuffer[:n])
-	// 	}
-	// }
+	err = SendSLCommand([]byte{'S', '8', '\r'}, outputCh)
+	if err != nil {
+		return err
+	}
 
 	time.Sleep(20 * time.Millisecond)
 
 	outputCh <- "Opening CAN Channel in normal mode (send/recevie)"
-	openCANcmd := []byte{'O', '\r'}
-	serialPort.Write(openCANcmd)
 
-	// for i := 0; i < 2; i++ {
-	// 	n, _ = serialPort.Read(readBuffer)
-	// 	if n > 0 {
-	// 		outputCh <- fmt.Sprintf("Response: %+v", readBuffer[:n])
-	// 	}
-	// }
-	ReadFrame(outputCh)
+	err = SendSLCommand([]byte{'O', '\r'}, outputCh)
+	if err != nil {
+		return err
+	}
 
-	outputCh <- "OK"
+	outputCh <- fmt.Sprintf("Open %s OK", args[1])
 
 	return nil
 }
@@ -222,6 +209,11 @@ func executeCloseCmd(args []string, outputCh chan string) error {
 		return fmt.Errorf("syntax error ('close')' Args: '%s'", args)
 	}
 
+	outputCh <- "Closing CAN Channel"
+
+	openCANcmd := []byte{'C', '\r'}
+	serialPort.Write(openCANcmd)
+
 	outputCh <- "Closing serial port"
 
 	if serialPort != nil {
@@ -230,7 +222,7 @@ func executeCloseCmd(args []string, outputCh chan string) error {
 		outputCh <- "No worries, I'll close the serial port you never bothered to open in the first place..."
 	}
 
-	outputCh <- "OK"
+	outputCh <- "Close serial port OK"
 	return nil
 }
 
@@ -248,7 +240,7 @@ func executeSetSpeedCmd(args []string, outputCh chan string) error {
 		return err
 	}
 
-	outputCh <- fmt.Sprintf("Setting run mode to SPEED MODE for motor %02X", motorId)
+	outputCh <- fmt.Sprintf("Setting run mode to [red]SPEED MODE[-] for motor %02X", motorId)
 	frame, err = cybergear.SetRunMode(parameters.HostId, byte(motorId), cybergear.SPEED_MODE)
 	if err != nil {
 		return err
@@ -280,7 +272,7 @@ func executeSetSpeedCmd(args []string, outputCh chan string) error {
 		return err
 	}
 
-	outputCh <- "OK"
+	outputCh <- fmt.Sprintf("set_speed %02x %2.2f OK", motorId, speed)
 
 	return nil
 }

@@ -28,8 +28,8 @@ func ReadFrame(outputCh chan string) error {
 	}
 
 	if len(frameBuffer) > 0 {
-		outputCh <- fmt.Sprintf("RX (hex)  : %+v", frameBuffer)
-		outputCh <- fmt.Sprintf("RX (ascii): %s", frameBuffer)
+		// outputCh <- fmt.Sprintf("RX (hex)  : %+v", frameBuffer)
+		// outputCh <- fmt.Sprintf("RX (ascii): %s", frameBuffer)
 
 		frame, err := slcan.HandleIncomingFrame(frameBuffer)
 		if err != nil {
@@ -49,11 +49,10 @@ func SendSLCommand(txBuffer []byte, outputCh chan string) error {
 	}
 
 	outputCh <- "Setting CAN bitrate to 1Mbit"
-	setBitrateCmd := []byte{'S', '8', '\r'}
 	outputCh <- fmt.Sprintf("TX (hex)   : %+v", txBuffer)
 	outputCh <- fmt.Sprintf("TX (ascii) : %+s", txBuffer)
 
-	serialPort.Write(setBitrateCmd)
+	serialPort.Write(txBuffer)
 
 	err := ReadFrame(outputCh)
 	if err != nil {
@@ -66,14 +65,14 @@ func SendFrame(frame *cybergear.SLCanFrame, outputCh chan string) error {
 	bytesToSend := frame.Serialize()
 	bytesToSend = append(bytesToSend, '\r')
 
-	outputCh <- fmt.Sprintf("Sending frame : %+v", bytesToSend)
+	// outputCh <- fmt.Sprintf("Sending frame : %+v", bytesToSend)
 
 	if nil == serialPort {
 		return fmt.Errorf("it might be a good idea to open a serial port first")
 	}
 
-	outputCh <- fmt.Sprintf("TX (hex)  : %+v", bytesToSend)
-	outputCh <- fmt.Sprintf("TX (ascii): %+s", bytesToSend)
+	// outputCh <- fmt.Sprintf("TX (hex)  : %+v", bytesToSend)
+	// outputCh <- fmt.Sprintf("TX (ascii): %+s", bytesToSend)
 
 	n, err := serialPort.Write(bytesToSend)
 	if err != nil {
@@ -102,7 +101,7 @@ func executeHelpCmd(args []string, outputCh chan string) error {
 	outputCh <- "\tenable <motor CAN id> - enable motor."
 	outputCh <- "\tdisable <motor CAN id> - disable / stop motor."
 	outputCh <- "\tset_speed <motor CAN id> <rad/s> - set motor speed (-30~30rad/s)."
-	outputCh <- "\tget_feedback <motor CAN id>"
+	outputCh <- "\tread_current <motor CAN id>"
 	//	outputCh <- "\tmode <motor CAN id> <speed | position | current> - set operation mode"
 
 	return nil
@@ -175,7 +174,7 @@ func executeOpenCmd(args []string, outputCh chan string) error {
 		return fmt.Errorf("syntax error ('open <serial port name>')' Args: '%+v'", args)
 	}
 
-	serialConfig := &serial.Config{Name: args[1], Baud: 115200, Size: 8, Parity: serial.ParityNone, StopBits: 1, ReadTimeout: time.Second * 1}
+	serialConfig := &serial.Config{Name: args[1], Baud: 115200, Size: 8, Parity: serial.ParityNone, StopBits: 1, ReadTimeout: time.Millisecond * 100}
 
 	outputCh <- fmt.Sprintf("Opening %s", args[1])
 
@@ -232,7 +231,7 @@ func executeSetSpeedCmd(args []string, outputCh chan string) error {
 	var motorId int64
 
 	if len(args) != 3 {
-		return fmt.Errorf("syntax error ('speed <motorId> <rad/s>')' Args: '%+v'", args)
+		return fmt.Errorf("syntax error ('set_speed <motorId> <rad/s>')' Args: '%+v'", args)
 	}
 
 	motorId, err = strconv.ParseInt(args[1], 16, 8)
@@ -277,14 +276,102 @@ func executeSetSpeedCmd(args []string, outputCh chan string) error {
 	return nil
 }
 
+func executeSetCurrentCmd(args []string, outputCh chan string) error {
+	var frame *cybergear.SLCanFrame
+	var err error
+	var motorId int64
+
+	if len(args) != 3 {
+		return fmt.Errorf("syntax error ('set_current <motorId> <rad/s>')' Args: '%+v'", args)
+	}
+
+	motorId, err = strconv.ParseInt(args[1], 16, 8)
+	if err != nil {
+		return err
+	}
+
+	outputCh <- fmt.Sprintf("Setting run mode to [red]SPEED MODE[-] for motor %02X", motorId)
+	frame, err = cybergear.SetRunMode(parameters.HostId, byte(motorId), cybergear.CURRENT_MODE)
+	if err != nil {
+		return err
+	}
+	err = SendFrame(frame, outputCh)
+	if err != nil {
+		return err
+	}
+
+	var tmp float64
+	tmp, err = strconv.ParseFloat(args[2], 64)
+	var current = float32(tmp)
+	if err != nil {
+		return err
+	}
+
+	if current < -23.0 || current > 23.0 {
+		return fmt.Errorf("invalid current parameter: %2.2f. Valid values are in the interval [-23,23] A", current)
+	}
+
+	outputCh <- fmt.Sprintf("Setting current to %2.2f A", current)
+	frame, err = cybergear.WriteParameterCmd(parameters.HostId, byte(motorId), cybergear.PARAMETER_IQ_REF, current)
+	if err != nil {
+		return err
+	}
+
+	err = SendFrame(frame, outputCh)
+	if err != nil {
+		return err
+	}
+
+	outputCh <- fmt.Sprintf("set_current %02x %2.2fA OK", motorId, current)
+
+	return nil
+}
+
+func executeGetStatusCmd(args []string, outputCh chan string) error {
+
+	var frame *cybergear.SLCanFrame
+
+	if len(args) != 2 {
+		return fmt.Errorf("syntax error ('get_status <motor ID>')' Args: '%+v'", args)
+	}
+
+	motorId, err := strconv.ParseUint(args[1], 16, 8)
+	if err != nil {
+		return fmt.Errorf("syntax error: <motor ID>: '%s'", args[1])
+	}
+
+	if err != nil {
+		return err
+	}
+
+	outputCh <- fmt.Sprintf("Enabling motor (CAN id: %02X)", motorId)
+	frame, err = cybergear.GetStatusCmd(parameters.HostId, byte(motorId))
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < 100; i++ {
+		err = SendFrame(frame, outputCh)
+		if err != nil {
+			return err
+		}
+	}
+
+	outputCh <- fmt.Sprintf("get_status (CAN id: %02X) OK", motorId)
+
+	return nil
+}
+
 var dispatchMap = map[string]dispatchFunc{
-	"help":      executeHelpCmd,
-	"enable":    executeEnableCmd,
-	"disable":   executeDisableCmd,
-	"open":      executeOpenCmd,
-	"close":     executeCloseCmd,
-	"set_speed": executeSetSpeedCmd,
-	//	"get_feedback": executeGetFeedbackCmd,
+	"help":        executeHelpCmd,
+	"enable":      executeEnableCmd,
+	"disable":     executeDisableCmd,
+	"open":        executeOpenCmd,
+	"close":       executeCloseCmd,
+	"set_speed":   executeSetSpeedCmd,
+	"set_current": executeSetCurrentCmd,
+	"get_status":  executeGetStatusCmd,
+	// "limit_torque": executeLimitTorqueCmd,
 }
 
 func Dispatch(command string, outputCh chan string) error {

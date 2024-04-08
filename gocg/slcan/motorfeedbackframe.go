@@ -17,7 +17,7 @@ const (
 type MotorFeedback struct {
 	hostId                byte    // Host CAN Id
 	motorId               byte    // Motor CAN Id
-	currentTorque         float32 // [-12, 12] N/m
+	currentTorque         float32 // [-12, 12] Nm
 	currentAngle          float32 // [-4pi, 4pi]
 	currentSpeed          float32 // [-30rad/s, 30rad/s]
 	currentTemperature    float32 // Current temperature: Temp (degrees Celsius) * 10
@@ -35,13 +35,11 @@ func (f *MotorFeedback) CyberGearFrameType() cybergear.CommunicationType {
 }
 
 func (f *MotorFeedback) HostId() byte {
-
-	return 0
+	return f.hostId
 }
 
 func (f *MotorFeedback) MotorId() byte {
-
-	return 0
+	return f.motorId
 }
 
 func (f *MotorFeedback) ParseByte(ascii []byte) (byte, error) {
@@ -126,13 +124,15 @@ func (f *MotorFeedback) Unmarshal(frameBuffer []byte) error {
 func (f *MotorFeedback) String() string {
 	var s string
 
-	s += "Motor status:\n"
-	s += fmt.Sprintf("host id : 0x%02X\n", f.hostId)
-	s += fmt.Sprintf("motor id : 0x%02X\n", f.motorId)
-	s += fmt.Sprintf("angle : %02.0f rad\n", f.currentAngle)
-	s += fmt.Sprintf("angular velocity : %02.0f rad/s\n", f.currentSpeed)
-	s += fmt.Sprintf("torque : %02.0f Nm\n", f.currentTorque)
-	s += fmt.Sprintf("temperature : %02.0f C\n", f.currentTemperature)
+	s += fmt.Sprintf("torque : %02.2f Nm", f.currentTorque)
+
+	// s += "Motor status:\n"
+	// s += fmt.Sprintf("host id : 0x%02X\n", f.hostId)
+	// s += fmt.Sprintf("motor id : 0x%02X\n", f.motorId)
+	// s += fmt.Sprintf("angle : %02.2f rad\n", f.currentAngle)
+	// s += fmt.Sprintf("angular velocity : %02.2f rad/s\n", f.currentSpeed)
+	// s += fmt.Sprintf("torque : %02.2f Nm\n", f.currentTorque)
+	// s += fmt.Sprintf("temperature : %02.2f C\n", f.currentTemperature)
 
 	return s
 }

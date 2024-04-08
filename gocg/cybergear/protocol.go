@@ -11,13 +11,14 @@ const EXTENDED_FRAME_TYPE = 'T'
 type CommunicationType int
 
 const (
-	COMMUNICATION_FETCH_DEVICE_ID              CommunicationType = 0  // Get the device ID (communication type 0); get the device ID and 64-bit MCU unique identifier
-	COMMUNICATION_MOTION_CONTROL_COMMAND       CommunicationType = 1  // Operation control mode motor control instructions (communication type 1) are used to send control instructions to the motor
-	COMMUNICATION_STATUS_REPORT                CommunicationType = 2  // Motor feedback data (communication type 2) is used to feedback the motor operating status to the host
-	COMMUNICATION_ENABLE_DEVICE                CommunicationType = 3  // Motor enable operation (communication type 3)
-	COMMUNICATION_DISABLE_DEVICE               CommunicationType = 4  // Motor stopped (communication type 4)
-	COMMUNICATION_SET_MECHANICAL_ZERO_POSITION CommunicationType = 6  // Setting the mechanical zero position of the motor (communication type 6) will set the current motor position to the mechanical zero position (lost after power failure)
-	COMMUNICATION_SET_CAN_ID                   CommunicationType = 7  // Set motor CAN_ID (communication type 7) to change the current motor CAN_ID, which will take effect immediately.
+	COMMUNICATION_FETCH_DEVICE_ID              CommunicationType = 0 // Get the device ID (communication type 0); get the device ID and 64-bit MCU unique identifier
+	COMMUNICATION_MOTION_CONTROL_COMMAND       CommunicationType = 1 // Operation control mode motor control instructions (communication type 1) are used to send control instructions to the motor
+	COMMUNICATION_STATUS_REPORT                CommunicationType = 2 // Motor feedback data (communication type 2) is used to feedback the motor operating status to the host
+	COMMUNICATION_ENABLE_DEVICE                CommunicationType = 3 // Motor enable operation (communication type 3)
+	COMMUNICATION_DISABLE_DEVICE               CommunicationType = 4 // Motor stopped (communication type 4)
+	COMMUNICATION_SET_MECHANICAL_ZERO_POSITION CommunicationType = 6 // Setting the mechanical zero position of the motor (communication type 6) will set the current motor position to the mechanical zero position (lost after power failure)
+	COMMUNICATION_SET_CAN_ID                   CommunicationType = 7 // Set motor CAN_ID (communication type 7) to change the current motor CAN_ID, which will take effect immediately.
+	COMMUNICATION_GET_STATUS                   CommunicationType = 15
 	COMMUNICATION_READ_SINGLE_PARAM            CommunicationType = 17 // Single parameter reading (communication type 17)
 	COMMUNICATION_WRITE_SINGLE_PARAM           CommunicationType = 18 // Single parameter writing (communication type 18) (lost after power failure)
 	COMMUNICATION_ERROR_REPORT                 CommunicationType = 21 // Fault feedback frame (communication type 21)
@@ -134,16 +135,14 @@ const (
 	PARAMETER_LOC_REF       motorParameterIndex = 0x7016 // R/W
 	PARAMETER_LIMIT_SPD     motorParameterIndex = 0x7017 // R/W
 	PARAMETER_LIMIT_CUR     motorParameterIndex = 0x7018 // R/W
-	/*
-		PARAMETER_MECH_POS		motorParameterIndex = 0x7019	// R
-		PARAMETER_IQF			motorParameterIndex = 0x701A	// R
-		PARAMETER_MECH_VEL		motorParameterIndex = 0x701B	// R
-		PARAMETER_MECH_VBUS		motorParameterIndex = 0x701C	// R
-		PARAMETER_MECH_ROTATION	motorParameterIndex = 0x701D	// R/W
-		PARAMETER_LOC_KP		motorParameterIndex = 0x701E	// R/W
-		PARAMETER_SPD_KP		motorParameterIndex = 0x701F	// R/W
-		PARAMETER_SPD_KI		motorParameterIndex = 0x7020	// R/W
-	*/
+	PARAMETER_MECH_POS      motorParameterIndex = 0x7019 // R
+	PARAMETER_IQF           motorParameterIndex = 0x701A // R
+	PARAMETER_MECH_VEL      motorParameterIndex = 0x701B // R
+	PARAMETER_MECH_VBUS     motorParameterIndex = 0x701C // R
+	PARAMETER_MECH_ROTATION motorParameterIndex = 0x701D // R/W
+	PARAMETER_LOC_KP        motorParameterIndex = 0x701E // R/W
+	PARAMETER_SPD_KP        motorParameterIndex = 0x701F // R/W
+	PARAMETER_SPD_KI        motorParameterIndex = 0x7020 // R/W
 )
 
 // CyberGear Communication mode 1 sends control instructions
@@ -223,6 +222,32 @@ func EnableMotorCmd(hostId byte, motorId byte) (*SLCanFrame, error) {
 	return &frame, nil
 }
 
+// 4.1.4 Get Status (communication type 15) - undocumented...
+func GetStatusCmd(hostId byte, motorId byte) (*SLCanFrame, error) {
+	if hostId > MAX_CAN_ID {
+		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
+	}
+
+	if motorId > MAX_CAN_ID {
+		return nil, fmt.Errorf("invalid motor Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
+	}
+
+	hostIdString := fmt.Sprintf("%02X", hostId)
+	motorIdString := fmt.Sprintf("%02X", motorId)
+	communicationType := fmt.Sprintf("%02X", COMMUNICATION_GET_STATUS)
+
+	frame := NewSLCanFrame()
+	frame.header[0] = 'T' // Extended frame
+	frame.header[1] = communicationType[0]
+	frame.header[2] = communicationType[1]
+	frame.header[5] = hostIdString[0]
+	frame.header[6] = hostIdString[1]
+	frame.header[7] = motorIdString[0]
+	frame.header[8] = motorIdString[1]
+
+	return &frame, nil
+}
+
 // 4.1.5 Motor stopped (communication type 4)
 func DisableMotorCmd(hostId byte, motorId byte) (*SLCanFrame, error) {
 	if hostId > MAX_CAN_ID {
@@ -283,6 +308,48 @@ func SetRunMode(hostId byte, motorId byte, mode runModeType) (*SLCanFrame, error
 
 	frame.data[8] = runMode[0]
 	frame.data[9] = runMode[1]
+	frame.data[10] = '0'
+	frame.data[11] = '0'
+	frame.data[12] = '0'
+	frame.data[13] = '0'
+	frame.data[14] = '0'
+	frame.data[15] = '0'
+
+	return &frame, nil
+}
+
+func ReadSingleParameterFrame(hostId byte, motorId byte, parameter motorParameterIndex) (*SLCanFrame, error) {
+	if hostId > MAX_CAN_ID {
+		return nil, fmt.Errorf("invalid host Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
+	}
+
+	if motorId > MAX_CAN_ID {
+		return nil, fmt.Errorf("invalid motor Id (%d). Max Id is %d", hostId, MAX_CAN_ID)
+	}
+
+	hostIdString := fmt.Sprintf("%02X", hostId)
+	motorIdString := fmt.Sprintf("%02X", motorId)
+	communicationType := fmt.Sprintf("%02X", COMMUNICATION_READ_SINGLE_PARAM)
+
+	frame := NewSLCanFrame()
+	frame.header[0] = 'T' // Extended frame
+	frame.header[1] = communicationType[0]
+	frame.header[2] = communicationType[1]
+	frame.header[5] = hostIdString[0]
+	frame.header[6] = hostIdString[1]
+	frame.header[7] = motorIdString[0]
+	frame.header[8] = motorIdString[1]
+	frame.header[9] = '8' // DLC
+
+	index := fmt.Sprintf("%04X", parameter)
+
+	frame.data[0] = index[2]
+	frame.data[1] = index[3]
+	frame.data[2] = index[0]
+	frame.data[3] = index[1]
+
+	frame.data[8] = '0'
+	frame.data[9] = '0'
 	frame.data[10] = '0'
 	frame.data[11] = '0'
 	frame.data[12] = '0'

@@ -78,6 +78,11 @@ func HandleIncomingFrame(frameBuffer []byte) (Frame, error) {
 		f := MotorFeedback{}
 		err = f.Unmarshal(frameBuffer)
 		return &f, err
+	case int64(cybergear.COMMUNICATION_READ_SINGLE_PARAM):
+		f := ParameterFrame{}
+		err = f.Unmarshal(frameBuffer)
+		return &f, err
+
 	default:
 		return nil, fmt.Errorf("unexpected cybergear frame type : %d", cgFrameType)
 	}
